@@ -9,8 +9,8 @@ Gem::Specification.new do |spec|
   spec.version       = Cal::Heatmap::Rails::VERSION
   spec.authors       = ['Pavol Zbell']
   spec.email         = ['pavol.zbell@gmail.com']
-  spec.summary       = 'Packages Cal-HeatMap for Rails Asser Pipeline'
-  spec.description   = 'Packages Cal-HeatMap for Rails Asser Pipeline'
+  spec.summary       = 'Packages Cal-HeatMap for Rails Asset Pipeline'
+  spec.description   = 'Packages Cal-HeatMap for Rails Asset Pipeline'
   spec.homepage      = 'https://github.com/pavolzbell/cal-heatmap-rails'
   spec.license       = 'MIT'
 
