@@ -1,6 +1,6 @@
 # Cal-HeatMap Rails
 
-Packages [Cal-HeatMap](https://github.com/kamisama/cal-heatmap) for Rails Asser Pipeline.
+Packages [Cal-HeatMap](https://github.com/kamisama/cal-heatmap) for Rails Asset Pipeline.
 
 - [D3](https://github.com/mbostock/d3) 3.4.6 (required, not included)
 - [Cal-HeatMap](https://github.com/kamisama/cal-heatmap) 3.4.0 (included)
