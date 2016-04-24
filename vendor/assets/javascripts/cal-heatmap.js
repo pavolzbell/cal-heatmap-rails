@@ -1,7 +1,7 @@
-/*! cal-heatmap v3.5.1 (Mon Jan 19 2015 17:28:39)
+/*! cal-heatmap v3.6.0 (Sun Apr 24 2016 19:19:35)
  *  ---------------------------------------------
  *  Cal-Heatmap is a javascript module to create calendar heatmap to visualize time series data
- *  https://github.com/kamisama/cal-heatmap
+ *  https://github.com/wa0x6e/cal-heatmap
  *  Licensed under the MIT license
  *  Copyright 2014 Wan Qi Chen
  */
@@ -70,10 +70,22 @@ var CalHeatMap = function() {
 
 		maxDate: null,
 
+		// ================================================
+		// DATA
+		// ================================================
+
+		// Data source
 		// URL, where to fetch the original datas
 		data: "",
 
+		// Data type
+		// Default: json
 		dataType: this.allowedDataType[0],
+
+		// Payload sent when using POST http method
+		// Leave to null (default) for GET request
+		// Expect a string, formatted like "a=b;c=d"
+		dataPostPayload: null,
 
 		// Whether to consider missing date:value from the datasource
 		// as equal to 0, or just leave them as missing
@@ -438,7 +450,7 @@ var CalHeatMap = function() {
 				case "year":
 					return self._domainType.week.maxItemNumber;
 				case "month":
-					return self.getWeekNumber(new Date(d.getFullYear(), d.getMonth()+1, 0)) - self.getWeekNumber(d);
+					return self.options.domainDynamicDimension ? self.getWeekNumber(new Date(d.getFullYear(), d.getMonth()+1, 0)) - self.getWeekNumber(d) : 5;
 				}
 			},
 			defaultRowNumber: 1,
@@ -527,7 +539,7 @@ var CalHeatMap = function() {
 				column: d.row,
 				position: {
 					x: d.position.y,
-					y: d.position.x,
+					y: d.position.x
 				},
 				format: d.format,
 				extractUnit: d.extractUnit
@@ -1386,7 +1398,15 @@ CalHeatMap.prototype = {
 			}
 
 			element.attr("fill", function(d) {
-				if (d.v === 0 && options.legendColors !== null && options.legendColors.hasOwnProperty("empty")) {
+				if (d.v === null && (options.hasOwnProperty("considerMissingDataAsZero") && !options.considerMissingDataAsZero)) {
+					if (options.legendColors.hasOwnProperty("base")) {
+						return options.legendColors.base;
+					}
+				}
+
+				if (options.legendColors !== null && options.legendColors.hasOwnProperty("empty") &&
+					(d.v === 0 || (d.v === null && options.hasOwnProperty("considerMissingDataAsZero") && options.considerMissingDataAsZero))
+				) {
 					return options.legendColors.empty;
 				}
 
@@ -1403,14 +1423,19 @@ CalHeatMap.prototype = {
 
 				var htmlClass = parent.getHighlightClassName(d.t).trim().split(" ");
 				var pastDate = parent.dateIsLessThan(d.t, new Date());
+        var sameDate = parent.dateIsEqual(d.t, new Date());
 
-				if (parent.legendScale === null) {
+				if (parent.legendScale === null ||
+					(d.v === null && (options.hasOwnProperty("considerMissingDataAsZero") && !options.considerMissingDataAsZero) &&!options.legendColors.hasOwnProperty("base"))
+				) {
 					htmlClass.push("graph-rect");
 				}
 
-				if (!pastDate && htmlClass.indexOf("now") === -1) {
-					htmlClass.push("future");
-				}
+        if (sameDate) {
+          htmlClass.push("now");
+        } else if (!pastDate) {
+          htmlClass.push("future");
+        }
 
 				if (d.v !== null) {
 					htmlClass.push(parent.Legend.getClass(d.v, (parent.legendScale === null)));
@@ -1853,8 +1878,8 @@ CalHeatMap.prototype = {
 
 		if (this.options.highlight.length > 0) {
 			for (var i in this.options.highlight) {
-				if (this.options.highlight[i] instanceof Date && this.dateIsEqual(this.options.highlight[i], d)) {
-					return " highlight" + (this.isNow(this.options.highlight[i]) ? " now": "");
+				if (this.dateIsEqual(this.options.highlight[i], d)) {
+					return this.isNow(this.options.highlight[i]) ? " highlight-now": " highlight";
 				}
 			}
 		}
@@ -1886,6 +1911,14 @@ CalHeatMap.prototype = {
 	/* jshint maxcomplexity: false */
 	dateIsEqual: function(dateA, dateB) {
 		"use strict";
+
+		if(!(dateA instanceof Date)) {
+			dateA = new Date(dateA);
+		}
+
+		if (!(dateB instanceof Date)) {
+			dateB = new Date(dateB);
+		}
 
 		switch(this.options.subDomain) {
 		case "x_min":
@@ -2493,18 +2526,28 @@ CalHeatMap.prototype = {
 				_callback({});
 				return true;
 			} else {
+				var url = this.parseURI(source, startDate, endDate);
+				var requestType = "GET";
+				if (self.options.dataPostPayload !== null ) {
+					requestType = "POST";
+				}
+				var payload = null;
+				if (self.options.dataPostPayload !== null) {
+					payload = this.parseURI(self.options.dataPostPayload, startDate, endDate);
+				}
+
 				switch(this.options.dataType) {
 				case "json":
-					d3.json(this.parseURI(source, startDate, endDate), _callback);
+					d3.json(url, _callback).send(requestType, payload);
 					break;
 				case "csv":
-					d3.csv(this.parseURI(source, startDate, endDate), _callback);
+					d3.csv(url, _callback).send(requestType, payload);
 					break;
 				case "tsv":
-					d3.tsv(this.parseURI(source, startDate, endDate), _callback);
+					d3.tsv(url, _callback).send(requestType, payload);
 					break;
 				case "txt":
-					d3.text(this.parseURI(source, startDate, endDate), "text/plain", _callback);
+					d3.text(url, "text/plain", _callback).send(requestType, payload);
 					break;
 				}
 			}
@@ -2891,8 +2934,10 @@ CalHeatMap.prototype = {
 			".graph-rect": {},
 			"rect.highlight": {},
 			"rect.now": {},
+			"rect.highlight-now": {},
 			"text.highlight": {},
 			"text.now": {},
+			"text.highlight-now": {},
 			".domain-background": {},
 			".graph-label": {},
 			".subdomain-text": {},
